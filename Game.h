@@ -23,4 +23,6 @@ public:
 
 	void Stuff2d();
 	void Stuff3d();
+
+	SplinePath* path;
 };

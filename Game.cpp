@@ -48,6 +48,7 @@
 #include <Urho3D/Urho2D/AnimatedSprite2D.h>
 #include <Urho3D/Urho2D/AnimationSet2D.h>
 #include <Urho3D/Urho2D/Sprite2D.h>
+#include <Urho3D/Scene/SplinePath.h>
 
 #include "Game.h"
 
@@ -93,41 +94,36 @@ void Game::Stuff2d() {
 
 	//ResourceCache* cache = GetSubsystem<ResourceCache>();
 	// Get sprite
-	Sprite2D* sprite = cache->GetResource<Sprite2D>("Urho2D/Aster.png");
-	if (!sprite)
-		return;
+	Sprite2D* sprite = cache->GetResource<Sprite2D>("Urho2D/target.png");
 
-	float halfWidth = graphics->GetWidth() * 0.5f * PIXEL_SIZE;
-	float halfHeight = graphics->GetHeight() * 0.5f * PIXEL_SIZE;
+	/*float halfWidth = graphics->GetWidth() * 0.5f * PIXEL_SIZE;
+	float halfHeight = graphics->GetHeight() * 0.5f * PIXEL_SIZE;*/
 
-	SharedPtr<Node> spriteNode(scene_->CreateChild("StaticSprite2D"));
+	Node* spriteNode = scene_->CreateChild("StaticSprite2D");
 	spriteNode->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
-	spriteNode->SetScale(Vector3(2.0f, 1.0f, 1.0f));
 
 	StaticSprite2D* staticSprite = spriteNode->CreateComponent<StaticSprite2D>();
-	// Set random color
-	staticSprite->SetColor(Color(Random(1.0f), Random(1.0f), Random(1.0f), 1.0f));
 	// Set blend mode
 	staticSprite->SetBlendMode(BLEND_ALPHA);
 	// Set sprite
 	staticSprite->SetSprite(sprite);
 
-	{
-	
-		// Get animation set
-		AnimationSet2D* animationSet = cache->GetResource<AnimationSet2D>("Urho2D/GoldIcon.scml");
-		if (!animationSet)
-			return;
-
-		SharedPtr<Node> spriteNode(scene_->CreateChild("AnimatedSprite2D"));
-		spriteNode->SetPosition(Vector3(0.0f, 0.0f, -1.0f));
-
-		AnimatedSprite2D* animatedSprite = spriteNode->CreateComponent<AnimatedSprite2D>();
-		// Set animation
-		animatedSprite->SetAnimationSet(animationSet);
-		animatedSprite->SetAnimation("idle");
-	
-	}
+	// Initial point
+	Node* startNode = scene_->CreateChild("Start");
+	startNode->SetPosition(Vector3(10.0f, 1.0f, 0.0f));
+	// Target point
+	Node* targetNode = scene_->CreateChild("Target");
+	targetNode->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
+	// Node to move along the path ('controlled node')
+	Node* movingNode = scene_->CreateChild("MovingNode");
+	// Spline path
+	Node* pathNode = scene_->CreateChild("PathNode");
+	path = pathNode->CreateComponent<SplinePath>();
+	path->AddControlPoint(startNode, 0);
+	path->AddControlPoint(targetNode, 1);
+	path->SetInterpolationMode(LINEAR_CURVE);
+	path->SetSpeed(1.0f);
+	path->SetControlledNode(spriteNode);
 
 	Renderer* renderer = GetSubsystem<Renderer>();
 
@@ -138,7 +134,6 @@ void Game::Stuff2d() {
 	SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_2->GetComponent<Camera>()));
 	viewport->SetRenderPath(overlayRenderPath);
 	renderer->SetViewport(1, viewport);
-
 
 }
 
@@ -230,5 +225,5 @@ void Game::Stop() {
 
 void Game::HandleUpdate(StringHash eventType, VariantMap& eventData)
 {
-
+	path->Move(eventData["TimeStep"].GetFloat());
 }
