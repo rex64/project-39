@@ -91,6 +91,25 @@ void Game::Start() {
 		Vector3(4.f, -4.f, 0.f),
 		Vector3(0.f, 0.f, 0.f)
 	);
+
+	Graphics* graphics = GetSubsystem<Graphics>();
+
+	float halfWidth = graphics->GetWidth() * 0.5f * PIXEL_SIZE;
+	float halfHeight = graphics->GetHeight() * 0.5f * PIXEL_SIZE;
+
+	
+	addStaticSprite(Vector3(halfWidth, halfHeight, 0.0f));
+	addStaticSprite(Vector3(halfWidth, -halfHeight, 0.0f));
+	addStaticSprite(Vector3(-halfWidth, -halfHeight, 0.0f));
+	addStaticSprite(Vector3(-halfWidth, halfHeight, 0.0f));
+
+	addStaticSprite(Vector3(halfWidth, 0.0f, 0.0f));
+	addStaticSprite(Vector3(0.0f, -halfHeight, 0.0f));
+	addStaticSprite(Vector3(-halfWidth, 0.0f, 0.0f));
+	addStaticSprite(Vector3(0.0f, halfHeight, 0.0f));
+
+
+
 }
 
 void Game::Stuff2d() {
@@ -107,7 +126,17 @@ void Game::Stuff2d() {
 
 
 	Graphics* graphics = GetSubsystem<Graphics>();
-	camera2d->SetOrthoSize((float)graphics->GetHeight() * PIXEL_SIZE);
+	//camera2d->SetOrthoSize((float)graphics->GetHeight() * PIXEL_SIZE);
+
+	float pixelSize = PIXEL_SIZE;
+	int h = graphics->GetHeight();
+
+	//float orthoSize =  * pixelSize;
+
+	camera2d->SetOrthoSize((float)h * pixelSize);
+
+	float halfWidth = graphics->GetWidth() * 0.5f * pixelSize;
+	float halfHeight = graphics->GetHeight() * 0.5f * pixelSize;
 
 	Renderer* renderer = GetSubsystem<Renderer>();
 
@@ -145,6 +174,23 @@ void Game::Stuff2d() {
 
 	// Add Text instance to the UI root element
 	GetSubsystem<UI>()->GetRoot()->AddChild(timerText);
+
+
+
+	
+
+}
+
+void Game::addStaticSprite(Vector3 pos) {
+	
+	ResourceCache* cache = GetSubsystem<ResourceCache>();
+
+	Sprite2D* spriteCenter = cache->GetResource<Sprite2D>("Urho2D/target2.png");
+	Node* spriteNode = scene2d_->CreateChild("StaticSprite2D");
+	spriteNode->SetPosition(pos);
+	StaticSprite2D* staticSprite = spriteNode->CreateComponent<StaticSprite2D>();
+	staticSprite->SetBlendMode(BLEND_ALPHA);
+	staticSprite->SetSprite(spriteCenter);
 
 }
 
@@ -287,7 +333,6 @@ void Game::AddTarget(Vector3 startPos, Vector3 endPos) {
 	
 	// Spline path
 	Node* pathNode = scene2d_->CreateChild("PathNode");
-
 
 	SharedPtr<SplinePath> path(pathNode->CreateComponent<SplinePath>());
 	path->AddControlPoint(startNode, 0);

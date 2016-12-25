@@ -25,6 +25,7 @@ public:
 	void Stuff3d();
 
 	void AddTarget(Vector3 startPos, Vector3 endPos);
+	void addStaticSprite(Vector3 pos);
 
 	Scene *scene2d_;
 
