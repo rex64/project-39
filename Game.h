@@ -24,5 +24,13 @@ public:
 	void Stuff2d();
 	void Stuff3d();
 
-	SplinePath* path;
+	void AddTarget(Vector3 startPos, Vector3 endPos);
+
+	Scene *scene2d_;
+
+	Vector<SharedPtr<SplinePath> > paths;
+	SharedPtr<Text> timerText;
+
+	float timer;
+
 };

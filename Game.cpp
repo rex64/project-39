@@ -68,22 +68,39 @@ void Game::Setup() {
 
 void Game::Start() {
 
+	timer = 0.0f;
+
 	Renderer* renderer = GetSubsystem<Renderer>();
 
 	Stuff3d();
 	Stuff2d();
 
 	SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(Game, HandleUpdate));
+
+	AddTarget(
+		Vector3(4.f, 4.f, 0.f),
+		Vector3(0.f, 0.f, 0.f)
+	);
+
+	AddTarget(
+		Vector3(-4.f, 4.f, 0.f),
+		Vector3(0.f, 0.f, 0.f)
+	);
+
+	AddTarget(
+		Vector3(4.f, -4.f, 0.f),
+		Vector3(0.f, 0.f, 0.f)
+	);
 }
 
 void Game::Stuff2d() {
 
 	ResourceCache* cache = GetSubsystem<ResourceCache>();
-	Scene *scene_ = new Scene(context_);
-	scene_->CreateComponent<Octree>();
+	scene2d_ = new Scene(context_);
+	scene2d_->CreateComponent<Octree>();
 
 
-	Node *cameraNode_2 = scene_->CreateChild("Camera2D");
+	Node *cameraNode_2 = scene2d_->CreateChild("Camera2D");
 	Camera* camera2d = cameraNode_2->CreateComponent<Camera>();
 	camera2d->SetOrthographic(true);
 	cameraNode_2->SetPosition(Vector3(0.0f, 0.0f, -10.0f));
@@ -92,48 +109,42 @@ void Game::Stuff2d() {
 	Graphics* graphics = GetSubsystem<Graphics>();
 	camera2d->SetOrthoSize((float)graphics->GetHeight() * PIXEL_SIZE);
 
-	//ResourceCache* cache = GetSubsystem<ResourceCache>();
-	// Get sprite
-	Sprite2D* sprite = cache->GetResource<Sprite2D>("Urho2D/target.png");
-
-	/*float halfWidth = graphics->GetWidth() * 0.5f * PIXEL_SIZE;
-	float halfHeight = graphics->GetHeight() * 0.5f * PIXEL_SIZE;*/
-
-	Node* spriteNode = scene_->CreateChild("StaticSprite2D");
-	spriteNode->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
-
-	StaticSprite2D* staticSprite = spriteNode->CreateComponent<StaticSprite2D>();
-	// Set blend mode
-	staticSprite->SetBlendMode(BLEND_ALPHA);
-	// Set sprite
-	staticSprite->SetSprite(sprite);
-
-	// Initial point
-	Node* startNode = scene_->CreateChild("Start");
-	startNode->SetPosition(Vector3(10.0f, 1.0f, 0.0f));
-	// Target point
-	Node* targetNode = scene_->CreateChild("Target");
-	targetNode->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
-	// Node to move along the path ('controlled node')
-	Node* movingNode = scene_->CreateChild("MovingNode");
-	// Spline path
-	Node* pathNode = scene_->CreateChild("PathNode");
-	path = pathNode->CreateComponent<SplinePath>();
-	path->AddControlPoint(startNode, 0);
-	path->AddControlPoint(targetNode, 1);
-	path->SetInterpolationMode(LINEAR_CURVE);
-	path->SetSpeed(1.0f);
-	path->SetControlledNode(spriteNode);
-
 	Renderer* renderer = GetSubsystem<Renderer>();
 
 	SharedPtr<RenderPath> overlayRenderPath = SharedPtr<RenderPath>(new RenderPath());
 	overlayRenderPath->Load(cache->GetResource<XMLFile>("RenderPaths/ForwardOverlay.xml"));
 	
 
-	SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_2->GetComponent<Camera>()));
+	SharedPtr<Viewport> viewport(new Viewport(context_, scene2d_, cameraNode_2->GetComponent<Camera>()));
 	viewport->SetRenderPath(overlayRenderPath);
 	renderer->SetViewport(1, viewport);
+
+	// Construct new Text object
+	SharedPtr<Text> watermarkText(new Text(context_));
+	watermarkText->SetText("Project-39 alpha 0.1");
+	watermarkText->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 12);
+	watermarkText->SetColor(Color(0.0f, 1.0f, 0.0f));
+	watermarkText->SetHorizontalAlignment(HA_RIGHT);
+	watermarkText->SetVerticalAlignment(VA_BOTTOM);
+	GetSubsystem<UI>()->GetRoot()->AddChild(watermarkText);
+
+
+	// Construct new Text object
+	timerText = SharedPtr<Text>(new Text(context_));
+
+	// Set String to display
+	timerText->SetText("Project-39 alpha 0.1");
+
+	// Set font and text color
+	timerText->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 12);
+	timerText->SetColor(Color(0.0f, 1.0f, 0.0f));
+
+	// Align Text center-screen
+	timerText->SetHorizontalAlignment(HA_LEFT);
+	timerText->SetVerticalAlignment(VA_TOP);
+
+	// Add Text instance to the UI root element
+	GetSubsystem<UI>()->GetRoot()->AddChild(timerText);
 
 }
 
@@ -141,22 +152,22 @@ void Game::Stuff3d() {
 
 	ResourceCache* cache = GetSubsystem<ResourceCache>();
 
-	// Construct new Text object
-	SharedPtr<Text> helloText(new Text(context_));
+	//// Construct new Text object
+	//SharedPtr<Text> helloText(new Text(context_));
 
-	// Set String to display
-	helloText->SetText("Project-39 alpha 0.1");
+	//// Set String to display
+	//helloText->SetText("Project-39 alpha 0.1");
 
-	// Set font and text color
-	helloText->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 12);
-	helloText->SetColor(Color(0.0f, 1.0f, 0.0f));
+	//// Set font and text color
+	//helloText->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 12);
+	//helloText->SetColor(Color(0.0f, 1.0f, 0.0f));
 
-	// Align Text center-screen
-	helloText->SetHorizontalAlignment(HA_RIGHT);
-	helloText->SetVerticalAlignment(VA_BOTTOM);
+	//// Align Text center-screen
+	//helloText->SetHorizontalAlignment(HA_RIGHT);
+	//helloText->SetVerticalAlignment(VA_BOTTOM);
 
-	// Add Text instance to the UI root element
-	GetSubsystem<UI>()->GetRoot()->AddChild(helloText);
+	//// Add Text instance to the UI root element
+	//GetSubsystem<UI>()->GetRoot()->AddChild(helloText);
 
 	Scene *scene_ = new Scene(context_);
 
@@ -225,5 +236,65 @@ void Game::Stop() {
 
 void Game::HandleUpdate(StringHash eventType, VariantMap& eventData)
 {
-	path->Move(eventData["TimeStep"].GetFloat());
+	float timeStep = eventData["TimeStep"].GetFloat();
+
+	timer = timer + timeStep;
+
+	for (unsigned i = 0; i < paths.Size(); ++i) {
+	
+		SharedPtr<SplinePath> path = paths[i];
+		path->Move(timeStep);
+		if (path->IsFinished()) {
+			path->Reset();
+		}
+		
+	
+	}
+
+	timerText->SetText(String(timer));
+}
+
+void Game::AddTarget(Vector3 startPos, Vector3 endPos) {
+	
+	ResourceCache* cache = GetSubsystem<ResourceCache>();
+
+	//ResourceCache* cache = GetSubsystem<ResourceCache>();
+	// Get sprite
+	Sprite2D* sprite = cache->GetResource<Sprite2D>("Urho2D/target.png");
+
+	/*float halfWidth = graphics->GetWidth() * 0.5f * PIXEL_SIZE;
+	float halfHeight = graphics->GetHeight() * 0.5f * PIXEL_SIZE;*/
+
+	Node* spriteNode = scene2d_->CreateChild("StaticSprite2D");
+	spriteNode->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
+
+	StaticSprite2D* staticSprite = spriteNode->CreateComponent<StaticSprite2D>();
+	// Set blend mode
+	staticSprite->SetBlendMode(BLEND_ALPHA);
+	// Set sprite
+	staticSprite->SetSprite(sprite);
+
+	// Initial point
+	Node* startNode = scene2d_->CreateChild("Start");
+	startNode->SetPosition(startPos);
+	
+	// Target point
+	Node* targetNode = scene2d_->CreateChild("Target");
+	targetNode->SetPosition(endPos);
+	
+	// Node to move along the path ('controlled node')
+	Node* movingNode = scene2d_->CreateChild("MovingNode");
+	
+	// Spline path
+	Node* pathNode = scene2d_->CreateChild("PathNode");
+
+
+	SharedPtr<SplinePath> path(pathNode->CreateComponent<SplinePath>());
+	path->AddControlPoint(startNode, 0);
+	path->AddControlPoint(targetNode, 1);
+	path->SetInterpolationMode(LINEAR_CURVE);
+	path->SetSpeed(1.0f);
+	path->SetControlledNode(spriteNode);
+
+	paths.Push(path);
 }
