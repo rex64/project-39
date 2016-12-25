@@ -36,6 +36,7 @@
 #include <Urho3D/Graphics/Camera.h>
 #include <Urho3D/Graphics/Geometry.h>
 #include <Urho3D/Graphics/Renderer.h>
+#include <Urho3D/Graphics/RenderPath.h>
 #include <Urho3D/Graphics/DebugRenderer.h>
 #include <Urho3D/Graphics/Octree.h>
 #include <Urho3D/Graphics/Light.h>
@@ -43,6 +44,10 @@
 #include <Urho3D/Graphics/StaticModel.h>
 #include <Urho3D/Graphics/Material.h>
 #include <Urho3D/Graphics/Skybox.h>
+
+#include <Urho3D/Urho2D/AnimatedSprite2D.h>
+#include <Urho3D/Urho2D/AnimationSet2D.h>
+#include <Urho3D/Urho2D/Sprite2D.h>
 
 #include "Game.h"
 
@@ -53,30 +58,107 @@ URHO3D_DEFINE_APPLICATION_MAIN(Game)
 Game::Game(Context* context) : Application(context) {}
 
 void Game::Setup() {
-	
+
 	engineParameters_["FullScreen"] = false;
 	engineParameters_["WindowWidth"] = 1280;
 	engineParameters_["WindowHeight"] = 720;
-	
+
 }
 
 void Game::Start() {
+
+	Renderer* renderer = GetSubsystem<Renderer>();
+
+	Stuff3d();
+	Stuff2d();
+
+	SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(Game, HandleUpdate));
+}
+
+void Game::Stuff2d() {
+
+	ResourceCache* cache = GetSubsystem<ResourceCache>();
+	Scene *scene_ = new Scene(context_);
+	scene_->CreateComponent<Octree>();
+
+
+	Node *cameraNode_2 = scene_->CreateChild("Camera2D");
+	Camera* camera2d = cameraNode_2->CreateComponent<Camera>();
+	camera2d->SetOrthographic(true);
+	cameraNode_2->SetPosition(Vector3(0.0f, 0.0f, -10.0f));
+
+
+	Graphics* graphics = GetSubsystem<Graphics>();
+	camera2d->SetOrthoSize((float)graphics->GetHeight() * PIXEL_SIZE);
+
+	//ResourceCache* cache = GetSubsystem<ResourceCache>();
+	// Get sprite
+	Sprite2D* sprite = cache->GetResource<Sprite2D>("Urho2D/Aster.png");
+	if (!sprite)
+		return;
+
+	float halfWidth = graphics->GetWidth() * 0.5f * PIXEL_SIZE;
+	float halfHeight = graphics->GetHeight() * 0.5f * PIXEL_SIZE;
+
+	SharedPtr<Node> spriteNode(scene_->CreateChild("StaticSprite2D"));
+	spriteNode->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
+	spriteNode->SetScale(Vector3(2.0f, 1.0f, 1.0f));
+
+	StaticSprite2D* staticSprite = spriteNode->CreateComponent<StaticSprite2D>();
+	// Set random color
+	staticSprite->SetColor(Color(Random(1.0f), Random(1.0f), Random(1.0f), 1.0f));
+	// Set blend mode
+	staticSprite->SetBlendMode(BLEND_ALPHA);
+	// Set sprite
+	staticSprite->SetSprite(sprite);
+
+	{
 	
+		// Get animation set
+		AnimationSet2D* animationSet = cache->GetResource<AnimationSet2D>("Urho2D/GoldIcon.scml");
+		if (!animationSet)
+			return;
+
+		SharedPtr<Node> spriteNode(scene_->CreateChild("AnimatedSprite2D"));
+		spriteNode->SetPosition(Vector3(0.0f, 0.0f, -1.0f));
+
+		AnimatedSprite2D* animatedSprite = spriteNode->CreateComponent<AnimatedSprite2D>();
+		// Set animation
+		animatedSprite->SetAnimationSet(animationSet);
+		animatedSprite->SetAnimation("idle");
+	
+	}
+
+	Renderer* renderer = GetSubsystem<Renderer>();
+
+	SharedPtr<RenderPath> overlayRenderPath = SharedPtr<RenderPath>(new RenderPath());
+	overlayRenderPath->Load(cache->GetResource<XMLFile>("RenderPaths/ForwardOverlay.xml"));
+	
+
+	SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_2->GetComponent<Camera>()));
+	viewport->SetRenderPath(overlayRenderPath);
+	renderer->SetViewport(1, viewport);
+
+
+}
+
+void Game::Stuff3d() {
+
 	ResourceCache* cache = GetSubsystem<ResourceCache>();
 
 	// Construct new Text object
 	SharedPtr<Text> helloText(new Text(context_));
 
 	// Set String to display
-	helloText->SetText("Project-39");
+	helloText->SetText("Project-39 alpha 0.1");
 
 	// Set font and text color
-	helloText->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 30);
+	helloText->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 12);
 	helloText->SetColor(Color(0.0f, 1.0f, 0.0f));
 
 	// Align Text center-screen
-	helloText->SetHorizontalAlignment(HA_CENTER);
-	helloText->SetVerticalAlignment(VA_CENTER);
+	helloText->SetHorizontalAlignment(HA_RIGHT);
+	helloText->SetVerticalAlignment(VA_BOTTOM);
 
 	// Add Text instance to the UI root element
 	GetSubsystem<UI>()->GetRoot()->AddChild(helloText);
@@ -96,7 +178,7 @@ void Game::Start() {
 	planeNode->SetScale(Vector3(100.0f, 1.0f, 100.0f));
 	StaticModel* planeObject = planeNode->CreateComponent<StaticModel>();
 	planeObject->SetModel(cache->GetResource<Model>("Models/Plane.mdl"));
-	planeObject->SetMaterial(cache->GetResource<Material>("Materials/StoneTiled.xml"));
+	planeObject->SetMaterial(cache->GetResource<Material>("Materials/Grid.xml"));
 
 	// Create a directional light to the world so that we can see something. The light scene node's orientation controls the
 	// light direction; we will use the SetDirection() function which calculates the orientation from a forward direction vector.
@@ -105,29 +187,6 @@ void Game::Start() {
 	lightNode->SetDirection(Vector3(0.6f, -1.0f, 0.8f)); // The direction vector does not need to be normalized
 	Light* light = lightNode->CreateComponent<Light>();
 	light->SetLightType(LIGHT_DIRECTIONAL);
-
-	// Create more StaticModel objects to the scene, randomly positioned, rotated and scaled. For rotation, we construct a
-	// quaternion from Euler angles where the Y angle (rotation about the Y axis) is randomized. The mushroom model contains
-	// LOD levels, so the StaticModel component will automatically select the LOD level according to the view distance (you'll
-	// see the model get simpler as it moves further away). Finally, rendering a large number of the same object with the
-	// same material allows instancing to be used, if the GPU supports it. This reduces the amount of CPU work in rendering the
-	// scene.
-	const unsigned NUM_OBJECTS = 200;
-	for (unsigned i = 0; i < NUM_OBJECTS; ++i)
-	{
-		Node* mushroomNode = scene_->CreateChild("Mushroom");
-		mushroomNode->SetPosition(Vector3(Random(90.0f) - 45.0f, 0.0f, Random(90.0f) - 45.0f));
-		mushroomNode->SetRotation(Quaternion(0.0f, Random(360.0f), 0.0f));
-		mushroomNode->SetScale(0.5f + Random(2.0f));
-		StaticModel* mushroomObject = mushroomNode->CreateComponent<StaticModel>();
-		mushroomObject->SetModel(cache->GetResource<Model>("Models/Mushroom.mdl"));
-		mushroomObject->SetMaterial(cache->GetResource<Material>("Materials/Mushroom.xml"));
-	
-		mushroomNode->Roll(45.0f);
-		mushroomNode->Pitch(30.0f);
-		mushroomNode->Yaw(10.0f);
-	
-	}
 
 	// Create a scene node for the camera, which we will move around
 	// The camera will use default settings (1000 far clip distance, 45 degrees FOV, set aspect ratio automatically)
@@ -145,7 +204,6 @@ void Game::Start() {
 	SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_->GetComponent<Camera>()));
 	renderer->SetViewport(0, viewport);
 
-	
 	// Let's put some sky in there.
 	// Again, if the engine can't find these resources you need to check
 	// the "ResourcePrefixPath". These files come with Urho3D.
@@ -161,18 +219,16 @@ void Game::Start() {
 	boxNode_->SetScale(Vector3(3, 3, 3));
 	StaticModel* boxObject = boxNode_->CreateComponent<StaticModel>();
 	boxObject->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
-	boxObject->SetMaterial(cache->GetResource<Material>("Materials/Stone.xml"));
+	boxObject->SetMaterial(cache->GetResource<Material>("Materials/Grid.xml"));
 	boxObject->SetCastShadows(true);
 
-
-	SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(Game, HandleUpdate));
 }
 
 void Game::Stop() {
-	
+
 }
 
 void Game::HandleUpdate(StringHash eventType, VariantMap& eventData)
 {
-	
+
 }

@@ -21,4 +21,6 @@ public:
     virtual void Stop();
 	virtual void HandleUpdate(StringHash eventType, VariantMap& eventData);
 
+	void Stuff2d();
+	void Stuff3d();
 };
