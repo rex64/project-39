@@ -24,14 +24,18 @@ public:
 	void Stuff2d();
 	void Stuff3d();
 
-	void AddTarget(Vector3 startPos, Vector3 endPos);
+	void AddTarget(Vector3 startPos, Vector3 endPos, float timeOffset);
 	void addStaticSprite(Vector3 pos);
+	void PlayMusic();
 
 	Scene *scene2d_;
 
-	Vector<SharedPtr<SplinePath> > paths;
+	Vector<SharedPtr<Node> > paths;
 	SharedPtr<Text> timerText;
 
 	float timer;
+
+	SoundSource* soundSource;
+	SharedPtr<Text> playTimeText;
 
 };

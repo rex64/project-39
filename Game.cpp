@@ -50,6 +50,13 @@
 #include <Urho3D/Urho2D/Sprite2D.h>
 #include <Urho3D/Scene/SplinePath.h>
 
+#include "Urho3D/IO/Log.h"
+
+#include <Urho3D/Audio/Audio.h>
+#include <Urho3D/Audio/AudioEvents.h>
+#include <Urho3D/Audio/Sound.h>
+#include <Urho3D/Audio/SoundSource.h>
+
 #include "Game.h"
 
 using namespace Urho3D;
@@ -79,17 +86,26 @@ void Game::Start() {
 
 	AddTarget(
 		Vector3(4.f, 4.f, 0.f),
-		Vector3(0.f, 0.f, 0.f)
+		Vector3(0.f, 0.f, 0.f),
+		2.0f
 	);
 
 	AddTarget(
 		Vector3(-4.f, 4.f, 0.f),
-		Vector3(0.f, 0.f, 0.f)
+		Vector3(0.f, 0.f, 0.f),
+		2.5f
 	);
 
 	AddTarget(
 		Vector3(4.f, -4.f, 0.f),
-		Vector3(0.f, 0.f, 0.f)
+		Vector3(0.f, 0.f, 0.f),
+		3.0f
+	);
+
+	AddTarget(
+		Vector3(4.f, -4.f, 0.f),
+		Vector3(0.f, 0.f, 0.f),
+		3.5f
 	);
 
 	Graphics* graphics = GetSubsystem<Graphics>();
@@ -97,7 +113,6 @@ void Game::Start() {
 	float halfWidth = graphics->GetWidth() * 0.5f * PIXEL_SIZE;
 	float halfHeight = graphics->GetHeight() * 0.5f * PIXEL_SIZE;
 
-	
 	addStaticSprite(Vector3(halfWidth, halfHeight, 0.0f));
 	addStaticSprite(Vector3(halfWidth, -halfHeight, 0.0f));
 	addStaticSprite(Vector3(-halfWidth, -halfHeight, 0.0f));
@@ -108,7 +123,7 @@ void Game::Start() {
 	addStaticSprite(Vector3(-halfWidth, 0.0f, 0.0f));
 	addStaticSprite(Vector3(0.0f, halfHeight, 0.0f));
 
-
+	PlayMusic();
 
 }
 
@@ -142,7 +157,7 @@ void Game::Stuff2d() {
 
 	SharedPtr<RenderPath> overlayRenderPath = SharedPtr<RenderPath>(new RenderPath());
 	overlayRenderPath->Load(cache->GetResource<XMLFile>("RenderPaths/ForwardOverlay.xml"));
-	
+
 
 	SharedPtr<Viewport> viewport(new Viewport(context_, scene2d_, cameraNode_2->GetComponent<Camera>()));
 	viewport->SetRenderPath(overlayRenderPath);
@@ -160,29 +175,30 @@ void Game::Stuff2d() {
 
 	// Construct new Text object
 	timerText = SharedPtr<Text>(new Text(context_));
-
-	// Set String to display
 	timerText->SetText("Project-39 alpha 0.1");
-
-	// Set font and text color
 	timerText->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 12);
 	timerText->SetColor(Color(0.0f, 1.0f, 0.0f));
-
-	// Align Text center-screen
 	timerText->SetHorizontalAlignment(HA_LEFT);
 	timerText->SetVerticalAlignment(VA_TOP);
-
-	// Add Text instance to the UI root element
 	GetSubsystem<UI>()->GetRoot()->AddChild(timerText);
 
+	// Construct new Text object
+	playTimeText = SharedPtr<Text>(new Text(context_));
+	playTimeText->SetText("Project-39 alpha 0.1");
+	playTimeText->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 12);
+	playTimeText->SetColor(Color(0.0f, 1.0f, 0.0f));
+	playTimeText->SetHorizontalAlignment(HA_LEFT);
+	playTimeText->SetVerticalAlignment(VA_CENTER);
+	GetSubsystem<UI>()->GetRoot()->AddChild(playTimeText);
 
 
-	
+
+
 
 }
 
 void Game::addStaticSprite(Vector3 pos) {
-	
+
 	ResourceCache* cache = GetSubsystem<ResourceCache>();
 
 	Sprite2D* spriteCenter = cache->GetResource<Sprite2D>("Urho2D/target2.png");
@@ -223,14 +239,14 @@ void Game::Stuff3d() {
 	// optimizing manner
 	scene_->CreateComponent<Octree>();
 
-	// Create a child scene node (at world origin) and a StaticModel component into it. Set the StaticModel to show a simple
-	// plane mesh with a "stone" material. Note that naming the scene nodes is optional. Scale the scene node larger
-	// (100 x 100 world units)
-	Node* planeNode = scene_->CreateChild("Plane");
-	planeNode->SetScale(Vector3(100.0f, 1.0f, 100.0f));
-	StaticModel* planeObject = planeNode->CreateComponent<StaticModel>();
-	planeObject->SetModel(cache->GetResource<Model>("Models/Plane.mdl"));
-	planeObject->SetMaterial(cache->GetResource<Material>("Materials/Grid.xml"));
+	//// Create a child scene node (at world origin) and a StaticModel component into it. Set the StaticModel to show a simple
+	//// plane mesh with a "stone" material. Note that naming the scene nodes is optional. Scale the scene node larger
+	//// (100 x 100 world units)
+	//Node* planeNode = scene_->CreateChild("Plane");
+	//planeNode->SetScale(Vector3(100.0f, 1.0f, 100.0f));
+	//StaticModel* planeObject = planeNode->CreateComponent<StaticModel>();
+	//planeObject->SetModel(cache->GetResource<Model>("Models/Plane.mdl"));
+	//planeObject->SetMaterial(cache->GetResource<Material>("Materials/Grid.xml"));
 
 	// Create a directional light to the world so that we can see something. The light scene node's orientation controls the
 	// light direction; we will use the SetDirection() function which calculates the orientation from a forward direction vector.
@@ -256,23 +272,23 @@ void Game::Stuff3d() {
 	SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_->GetComponent<Camera>()));
 	renderer->SetViewport(0, viewport);
 
-	// Let's put some sky in there.
-	// Again, if the engine can't find these resources you need to check
-	// the "ResourcePrefixPath". These files come with Urho3D.
-	Node* skyNode = scene_->CreateChild("Sky");
-	skyNode->SetScale(500.0f); // The scale actually does not matter
-	Skybox* skybox = skyNode->CreateComponent<Skybox>();
-	skybox->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
-	skybox->SetMaterial(cache->GetResource<Material>("Materials/Skybox.xml"));
+	//// Let's put some sky in there.
+	//// Again, if the engine can't find these resources you need to check
+	//// the "ResourcePrefixPath". These files come with Urho3D.
+	//Node* skyNode = scene_->CreateChild("Sky");
+	//skyNode->SetScale(500.0f); // The scale actually does not matter
+	//Skybox* skybox = skyNode->CreateComponent<Skybox>();
+	//skybox->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
+	//skybox->SetMaterial(cache->GetResource<Material>("Materials/Skybox.xml"));
 
-	// Let's put a box in there.
-	Node *boxNode_ = scene_->CreateChild("Box");
-	boxNode_->SetPosition(Vector3(0, 2, 15));
-	boxNode_->SetScale(Vector3(3, 3, 3));
-	StaticModel* boxObject = boxNode_->CreateComponent<StaticModel>();
-	boxObject->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
-	boxObject->SetMaterial(cache->GetResource<Material>("Materials/Grid.xml"));
-	boxObject->SetCastShadows(true);
+	//// Let's put a box in there.
+	//Node *boxNode_ = scene_->CreateChild("Box");
+	//boxNode_->SetPosition(Vector3(0, 2, 15));
+	//boxNode_->SetScale(Vector3(3, 3, 3));
+	//StaticModel* boxObject = boxNode_->CreateComponent<StaticModel>();
+	//boxObject->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
+	//boxObject->SetMaterial(cache->GetResource<Material>("Materials/Grid.xml"));
+	//boxObject->SetCastShadows(true);
 
 }
 
@@ -283,25 +299,69 @@ void Game::Stop() {
 void Game::HandleUpdate(StringHash eventType, VariantMap& eventData)
 {
 	float timeStep = eventData["TimeStep"].GetFloat();
+	float playTime = soundSource->GetTimePosition();
 
 	timer = timer + timeStep;
 
 	for (unsigned i = 0; i < paths.Size(); ++i) {
-	
-		SharedPtr<SplinePath> path = paths[i];
-		path->Move(timeStep);
-		if (path->IsFinished()) {
-			path->Reset();
-		}
+
+		SplinePath *path = paths[i]->GetComponent<SplinePath>();
 		
-	
+		float omar = paths[i]->GetVar("offset").GetFloat();
+
+		if (omar <= timer) {
+			if (path->IsFinished()) {
+				//
+				URHO3D_LOGINFO(String("[gameTimer] reached: ") + String(timer));
+				URHO3D_LOGINFO(String("[playTime] reached: ") + String(playTime));
+				//path->Reset();
+			}
+			else {
+				path->Move(timeStep);
+			}
+		}
+
+		
+
 	}
 
 	timerText->SetText(String(timer));
+	playTimeText->SetText(String(playTime));
+
+
+	Input* input = GetSubsystem<Input>();
+
+
+	if (input->GetKeyPress('W')) {
+		URHO3D_LOGINFO("w pressed");
+	}
 }
 
-void Game::AddTarget(Vector3 startPos, Vector3 endPos) {
-	
+void Game::PlayMusic() {
+
+	// Get the sound resource
+	ResourceCache* cache = GetSubsystem<ResourceCache>();
+	Sound* sound = cache->GetResource<Sound>("Music/UntitledSong.wav");
+
+	// Create a scene node with a SoundSource component for playing the sound. The SoundSource component plays
+	// non-positional audio, so its 3D position in the scene does not matter. For positional sounds the
+	// SoundSource3D component would be used instead
+	Node* soundNode = scene2d_->CreateChild("Sound");
+	soundSource = soundNode->CreateComponent<SoundSource>();
+	soundSource->Play(sound);
+	// In case we also play music, set the sound volume below maximum so that we don't clip the output
+	soundSource->SetGain(0.75f);
+
+	// Subscribe to the "sound finished" event generated by the SoundSource for removing the node once the sound has played
+	// Note: the event is sent through the Node (similar to e.g. node physics collision and animation trigger events)
+	// to not require subscribing to the particular component
+	//SubscribeToEvent(soundNode, E_SOUNDFINISHED, URHO3D_HANDLER(SoundEffects, HandleSoundFinished));
+
+
+}
+
+void Game::AddTarget(Vector3 startPos, Vector3 endPos, float timeOffset) {
+
 	ResourceCache* cache = GetSubsystem<ResourceCache>();
 
 	//ResourceCache* cache = GetSubsystem<ResourceCache>();
@@ -323,14 +383,14 @@ void Game::AddTarget(Vector3 startPos, Vector3 endPos) {
 	// Initial point
 	Node* startNode = scene2d_->CreateChild("Start");
 	startNode->SetPosition(startPos);
-	
+
 	// Target point
 	Node* targetNode = scene2d_->CreateChild("Target");
 	targetNode->SetPosition(endPos);
-	
+
 	// Node to move along the path ('controlled node')
 	Node* movingNode = scene2d_->CreateChild("MovingNode");
-	
+
 	// Spline path
 	Node* pathNode = scene2d_->CreateChild("PathNode");
 
@@ -338,8 +398,12 @@ void Game::AddTarget(Vector3 startPos, Vector3 endPos) {
 	path->AddControlPoint(startNode, 0);
 	path->AddControlPoint(targetNode, 1);
 	path->SetInterpolationMode(LINEAR_CURVE);
-	path->SetSpeed(1.0f);
+	path->SetSpeed(4.5f);
 	path->SetControlledNode(spriteNode);
 
-	paths.Push(path);
+	float timeToReach = path->GetLength() / path->GetSpeed();
+	URHO3D_LOGINFO(String("time to reach: ") + String(timeToReach));
+	pathNode->SetVar("offset", timeOffset - timeToReach);
+
+	paths.Push(SharedPtr<Node>(pathNode));
 }
